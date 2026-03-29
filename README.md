@@ -80,7 +80,169 @@ Password: whatever you set in `LabConfig.psd1`
 
 ---
 
-## Documentation
+## AI Integration
+
+ElasticLab deploys two AI components — ELSER and Ollama — and wires them into Elasticsearch as inference endpoints. Here is how to verify they are working and demonstrate their value.
+
+### ELSER — Semantic Search
+
+ELSER (Elastic Learned Sparse EncodeR) enables search by *meaning* rather than exact keywords. The classic demonstration is showing that a keyword search misses relevant results that a semantic search finds.
+
+**1. Create an index with a sparse vector field**
+
+In Kibana Dev Tools (`http://localhost:5601/app/dev_tools`):
+
+```json
+PUT /lab-docs
+{
+  "mappings": {
+    "properties": {
+      "text": { "type": "text" },
+      "text_embedding": { "type": "sparse_vector" }
+    }
+  }
+}
+```
+
+**2. Create an ingest pipeline that runs ELSER**
+
+```json
+PUT _ingest/pipeline/elser-pipeline
+{
+  "processors": [
+    {
+      "inference": {
+        "model_id": "elser-local",
+        "input_output": [
+          { "input_field": "text", "output_field": "text_embedding" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**3. Index documents through the pipeline**
+
+```json
+POST /lab-docs/_doc?pipeline=elser-pipeline
+{ "text": "The server is running out of memory and needs to be restarted" }
+
+POST /lab-docs/_doc?pipeline=elser-pipeline
+{ "text": "Elasticsearch heap pressure is causing performance degradation" }
+
+POST /lab-docs/_doc?pipeline=elser-pipeline
+{ "text": "The quarterly sales report shows a 12% increase in revenue" }
+
+POST /lab-docs/_doc?pipeline=elser-pipeline
+{ "text": "Network latency spikes are affecting application response times" }
+```
+
+**4. Compare keyword vs semantic search**
+
+Keyword search — returns no results because "RAM" does not appear in any document:
+```json
+GET /lab-docs/_search
+{
+  "query": {
+    "match": { "text": "RAM problem" }
+  }
+}
+```
+
+Semantic search — finds the memory and heap documents because it understands that "RAM problem" means the same thing as memory pressure:
+```json
+GET /lab-docs/_search
+{
+  "query": {
+    "sparse_vector": {
+      "field": "text_embedding",
+      "inference_id": "elser-local",
+      "query": "RAM problem"
+    }
+  }
+}
+```
+
+---
+
+### Ollama — Local LLM Inference
+
+Ollama runs a local large language model (llama3.2 by default) accessible through the Elasticsearch inference API. No data leaves the machine and no external API keys are required.
+
+**1. Verify Ollama is reachable**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:11434/api/tags"
+```
+
+Should return the list of downloaded models including `llama3.2`.
+
+**2. Query the LLM through the Elasticsearch inference API**
+
+In Kibana Dev Tools:
+```json
+POST _inference/completion/ollama-local
+{
+  "input": "In one sentence, what is Elasticsearch used for?"
+}
+```
+
+This proves the model is accessible through Elastic's inference layer rather than requiring a direct call to Ollama.
+
+---
+
+### RAG — Retrieval Augmented Generation
+
+The most compelling demonstration combines both components. Use ELSER to retrieve relevant documents, then pass them to Ollama to generate a natural language answer — a basic RAG (Retrieval Augmented Generation) pattern running entirely locally.
+
+**Step 1 — Retrieve relevant documents with ELSER**
+```json
+GET /lab-docs/_search
+{
+  "query": {
+    "sparse_vector": {
+      "field": "text_embedding",
+      "inference_id": "elser-local",
+      "query": "what performance issues are there?"
+    }
+  },
+  "size": 2
+}
+```
+
+**Step 2 — Pass retrieved content to Ollama for generation**
+```json
+POST _inference/completion/ollama-local
+{
+  "input": "Based on these observations: 'Elasticsearch heap pressure is causing performance degradation' and 'Network latency spikes are affecting application response times' — summarize what performance issues exist and suggest a remedy."
+}
+```
+
+This demonstrates a complete local AI pipeline: semantic retrieval with ELSER followed by natural language generation with Ollama, with no external API dependencies.
+
+---
+
+### VM Telemetry — Real Host Data in Kibana
+
+The enrolled VMs provide the most tangible observability demonstration. Once the VMs phase completes, open Kibana and navigate to **Discover** or **Dashboards**. You will see real data flowing from all four VMs including:
+
+- **Windows Event Log** — Security, System, and Application event streams
+- **Windows process and service metrics** — CPU, memory, handles per process
+- **Linux system metrics** — CPU, memory, disk I/O, network per host
+- **File integrity and log collection** — from both Windows and Linux hosts
+
+This is a realistic multi-host monitoring scenario that can be used to build and test detection rules, alerting, and dashboards against live data.
+
+| Capability | What It Demonstrates |
+|------------|----------------------|
+| ELSER semantic search | Find relevant content without exact keyword matches |
+| Ollama LLM inference | AI generation through Elasticsearch with no external API |
+| RAG pattern | Intelligent Q&A over your own data, running entirely locally |
+| ES8 vs ES9 side by side | Run the same queries on both stacks to compare behavior |
+| VM telemetry | Real Windows Event Log, process, and system data in Kibana |
+
+
 
 See [`docs/ElasticLab-Guide.md`](docs/ElasticLab-Guide.md) for the full user guide covering:
 
