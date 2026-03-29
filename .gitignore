@@ -1,0 +1,32 @@
+# =============================================================================
+# ElasticLab .gitignore
+# =============================================================================
+
+# -- Lab runtime data (generated at run time, never commit) -------------------
+elastic-lab/
+C:/elastic-lab/
+
+# Vagrant runtime state
+.vagrant/
+*.box
+
+# Docker environment files (contain credentials)
+.env
+
+# -- Logs ---------------------------------------------------------------------
+logs/
+*.log
+*.txt.log
+
+# -- OS / editor noise --------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# -- PowerShell artifacts -----------------------------------------------------
+*.ps1xml
