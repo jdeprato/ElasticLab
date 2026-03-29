@@ -283,6 +283,24 @@ ElasticLab/
 
 ---
 
+## Elastic Trial License
+
+ElasticLab automatically activates a **30-day Elastic Enterprise trial license** on each stack during the build. This enables all paid features including:
+
+- Machine learning (required for ELSER)
+- Fleet Server and centralized agent management
+- Advanced security features
+- Alerting and detection rules
+
+**After 30 days** the license reverts to Basic. ELSER and Fleet Server will stop functioning. To continue using the full feature set you have two options:
+
+- **Rebuild the lab** — run `.\Invoke-ElasticLab.ps1 -Phase Cleanup` followed by a full rebuild to start a fresh 30-day trial on new Elasticsearch data volumes
+- **Apply a valid license** — upload a paid license via Kibana under **Stack Management → License Management**
+
+> This lab is intended for testing and evaluation purposes. The 30-day Enterprise trial is provided by Elastic for non-production use.
+
+---
+
 ## Notes
 
 - All lab data is written to `C:\elastic-lab\` (configurable via `LabRoot` in `LabConfig.psd1`). This folder is excluded from the repo via `.gitignore`.
